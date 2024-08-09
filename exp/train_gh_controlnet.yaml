@@ -1,0 +1,86 @@
+# @package _global_
+
+defaults:
+  - model: controlnet
+
+train: True
+
+log_every_n_steps: 1000
+
+datamodule:
+  _target_: main.data.datamodule_gh.GreatestHitsDatamodule
+  root_dir: /import/c4dm-datasets-ext/DIFF-SFX/GREATEST-HITS-DATASET/mic-mp4-processed-4fps-16kHz
+
+  train_split_file_path: /import/c4dm-datasets-ext/DIFF-SFX/GREATEST-HITS-DATASET/mic-mp4-processed-4fps-16kHz/train.txt
+  train_data_to_use: 0.01
+  train_frames_transforms: null
+
+  val_split_file_path: /import/c4dm-datasets-ext/DIFF-SFX/GREATEST-HITS-DATASET/mic-mp4-processed-4fps-16kHz/val.txt
+  val_data_to_use: 0.1
+  val_frames_transforms: null
+
+  test_split_file_path: /import/c4dm-datasets-ext/DIFF-SFX/GREATEST-HITS-DATASET/mic-mp4-processed-4fps-16kHz/test.txt
+  test_data_to_use: 0.1
+  test_frames_transforms: null
+  
+  chunk_length_in_seconds: 2.0
+  sr: 44100
+  frame_size: 512
+  hop_length: 128
+  audio_file_suffix: .resampled.wav
+  annotations_file_suffix: .times.csv
+  metadata_file_suffix: .metadata.json
+  frame_file_suffix: .jpg
+  force_channels: stereo
+  batch_size: 1
+  num_workers: 8
+  pin_memory: True
+
+
+callbacks:
+  rich_progress_bar:
+    _target_: pytorch_lightning.callbacks.RichProgressBar
+
+  model_checkpoint:
+    _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    monitor: "valid_loss"   # name of the logged metric which determines when model is improving
+    save_top_k: 1           # save k best models (determined by above metric)
+    save_last: True         # additionaly always save model from last epoch
+    mode: "min"             # can be "max" or "min"
+    verbose: False
+    dirpath: ${logs_dir}/ckpts/${oc.env:TAG}_${now:%Y-%m-%d-%H-%M-%S}
+    filename: '{epoch:02d}-{valid_loss:.3f}'
+
+  model_summary:
+    _target_: pytorch_lightning.callbacks.RichModelSummary
+    max_depth: 2
+
+  audio_samples_logger:
+    _target_: main.module_controlnet.SampleLogger
+    sampling_steps: [ 100 ]
+    cfg_scale: 7.0
+    num_samples: 2
+
+loggers:
+  wandb:
+    _target_: pytorch_lightning.loggers.wandb.WandbLogger
+    project: ${oc.env:WANDB_PROJECT}
+    entity: ${oc.env:WANDB_ENTITY}
+    # offline: False  # set True to store all logs only locally
+    job_type: "train"
+    group: ""
+    save_dir: ${logs_dir}
+
+trainer:
+  _target_: pytorch_lightning.Trainer
+  devices: 1 # Set `1` to train on GPU, `0` to train on CPU only, and `-1` to train on all GPUs, default `0`
+  precision: 16 # Precision used for tensors, default `32`
+  accelerator: gpu # `ddp` GPUs train individually and sync gradients, default `None`
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 4
+  min_epochs: 0
+  max_epochs: -1
+  enable_model_summary: False
+  log_every_n_steps: 1 # Logs metrics every N batches
+  check_val_every_n_epoch: null
+  val_check_interval: ${log_every_n_steps}

@@ -1,0 +1,5 @@
+cavp_emb:
+  class_path: main.cavp.CAVPFeatureExtractor
+  init_args:
+    config_path: "./config/Stage1_CAVP.yaml"
+    ckpt_path: "/import/c4dm-datasets-ext/DIFF-SFX/logs/diff_foley/diff_foley_ckpt/cavp_epoch66.ckpt"

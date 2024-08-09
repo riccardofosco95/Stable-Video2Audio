@@ -1,0 +1,32 @@
+data:
+  class_path: stable_audio_tools.CAVP.main.GreatestHitsDatamodule
+  init_args:
+    root_dir: /import/c4dm-datasets-ext/DIFF-SFX/GREATEST-HITS-DATASET/mic-mp4-processed-4fps-16kHz
+    
+    train_split_file_path: /import/c4dm-datasets-ext/DIFF-SFX/GREATEST-HITS-DATASET/mic-mp4-processed-4fps-16kHz/train.txt
+    train_data_to_use: 0.01
+    train_frames_transforms: null
+
+    val_split_file_path: /import/c4dm-datasets-ext/DIFF-SFX/GREATEST-HITS-DATASET/mic-mp4-processed-4fps-16kHz/val.txt
+    val_data_to_use: 0.1
+    val_frames_transforms: null
+
+    test_split_file_path: /import/c4dm-datasets-ext/DIFF-SFX/GREATEST-HITS-DATASET/mic-mp4-processed-4fps-16kHz/test.txt
+    test_data_to_use: 0.1
+    test_frames_transforms: null
+    
+    chunk_length_in_seconds: 2.0
+
+    sr: 48000
+    frame_size: 512
+    hop_length: 128
+
+    audio_file_suffix: .resampled.wav
+    annotations_file_suffix: .times.csv
+    metadata_file_suffix: .metadata.json
+    frame_file_suffix: .jpg
+    force_channels: stereo
+    
+    batch_size: 1
+    num_workers: 8
+    pin_memory: True
