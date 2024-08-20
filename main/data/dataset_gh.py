@@ -34,8 +34,6 @@ class GreatestHitsDataset(torch.utils.data.Dataset):
         chunk_length_in_seconds=8.0,
         frames_transforms=None,
         sr=16000,
-        frame_size=2048,
-        hop_length=1024,
         audio_file_suffix='.resampled.wav',
         annotations_file_suffix=".times.csv",
         metadata_file_suffix=".metadata.json",
@@ -49,8 +47,6 @@ class GreatestHitsDataset(torch.utils.data.Dataset):
         self.data_to_use = data_to_use
         self.chunk_length_in_seconds = chunk_length_in_seconds
         self.sr = sr
-        self.frame_size = frame_size
-        self.hop_length = hop_length
         self.audio_file_suffix = audio_file_suffix
         self.annotations_file_suffix = annotations_file_suffix
         self.metadata_file_suffix = metadata_file_suffix
@@ -60,11 +56,6 @@ class GreatestHitsDataset(torch.utils.data.Dataset):
         if frames_transforms is not None:
             self.frames_transforms = frames_transforms
         else:
-            # self.frames_transforms = transforms.Compose([
-            #     transforms.Resize((112, 112), antialias=True),
-            #     transforms.ToTensor(),
-            #     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            # ])
             self.frames_transforms = transforms.Compose([
                 transforms.Resize((224, 224)),
                 transforms.ToTensor(),
@@ -81,8 +72,8 @@ class GreatestHitsDataset(torch.utils.data.Dataset):
 
 
         # load list chunks from pickle if exists
-        if os.path.exists(f"{self.root_dir}/list_chunks_{self.split}_prova4.pkl"):
-            with open(f"{self.root_dir}/list_chunks_{self.split}_prova4.pkl", "rb") as f:
+        if os.path.exists(f"{self.root_dir}/list_chunks_{self.split}_prova6.pkl"):
+            with open(f"{self.root_dir}/list_chunks_{self.split}_prova6.pkl", "rb") as f:
                 self.list_chunks = pickle.load(f)
         
         else: 
@@ -113,13 +104,9 @@ class GreatestHitsDataset(torch.utils.data.Dataset):
                 end_time = num_chunks * chunk_length_in_seconds
 
                 audio = os.path.join(root_dir, sample, "audio", f"{sample}{audio_file_suffix}")
-                # audio, sr_native = torchaudio.load(audio)
-                # audio = torchaudio.functional.resample(audio, orig_freq=sr_native, new_freq=self.sr)
-                audio, sr_native = librosa.load(audio, sr=self.sr, mono=False)
-                audio = torch.tensor(audio)
-                audio = audio.unsqueeze(0)
-                # # Normalize audio amplitude between -1 and 1
-                # audio = audio / torch.max(torch.abs(audio))
+                audio, sr_native = torchaudio.load(audio)
+                if sr_native != self.sr:
+                    audio = torchaudio.functional.resample(audio, orig_freq=sr_native, new_freq=self.sr)
 
                 # get annotations (onsets) up to end time
                 annotations_path = os.path.join(root_dir, sample, f"{sample}{annotations_file_suffix}")
@@ -148,72 +135,6 @@ class GreatestHitsDataset(torch.utils.data.Dataset):
                     # audio_chunk = audio_chunk.clamp(-1,1)
                     if self.encoding is not None:
                         audio_chunk = self.encoding(audio_chunk)
-                        # print(audio_chunk.shape)
-                    # spec_chunk = torchaudio.transforms.MelSpectrogram(sample_rate=self.sr, n_fft=1024, f_min=125, f_max=7600, n_mels=128, hop_length=256, power=1)(audio_chunk)
-                    # compute envelope for each audio chunk
-                    #envelope_chunk = self.amplitude_envelope(audio_chunk)
-                    if self.force_channels == "mono":
-                        audio_chunk = audio_chunk.squeeze()
-                        envelope_chunk = []
-                        for i in range(0, len(audio_chunk), self.hop_length):
-                            amplitude_envelope_current_frame = max(audio_chunk[i:i+self.frame_size]) 
-                            envelope_chunk.append(amplitude_envelope_current_frame)
-                        envelope_chunk = torch.tensor(envelope_chunk)
-
-                        seq_len = (audio_chunk.shape[0] / self.hop_length)
-                        seq_len = round(seq_len / chunk_length_in_frames) * chunk_length_in_frames
-                        seq_len = int(seq_len)
-                        if len(envelope_chunk) < seq_len:
-                            # If envelope is shorter, pad with zeros at the end
-                            padding = torch.zeros(seq_len - len(envelope_chunk))
-                            envelope_chunk = torch.cat((envelope_chunk, padding))
-                        elif len(envelope_chunk) > seq_len:
-                            # If envelope is longer, trim the end
-                            envelope_chunk = envelope_chunk[:seq_len]
-                        envelope_chunk = torch.nn.functional.interpolate(envelope_chunk.unsqueeze(0).unsqueeze(0),
-                                                                        size=(int(self.sr*self.chunk_length_in_seconds),),
-                                                                        mode='nearest').squeeze(0).squeeze(0)
-                        envelope_chunk = envelope_chunk.unsqueeze(0)
-                    elif self.force_channels == "stereo":
-                        envelope_chunk_1 = []
-                        envelope_chunk_2 = []
-
-                        # Calculate the envelope for each channel
-                        for i in range(0, audio_chunk.shape[1], self.hop_length):
-                            amplitude_envelope_current_frame_1 = max(audio_chunk[0][i:i+self.frame_size])
-                            amplitude_envelope_current_frame_2 = max(audio_chunk[1][i:i+self.frame_size])
-                            envelope_chunk_1.append(amplitude_envelope_current_frame_1)
-                            envelope_chunk_2.append(amplitude_envelope_current_frame_2)
-
-                        # Convert to tensors
-                        envelope_chunk_1 = torch.tensor(envelope_chunk_1)
-                        envelope_chunk_2 = torch.tensor(envelope_chunk_2)
-
-                        seq_len = (audio_chunk.shape[1] / self.hop_length)
-                        seq_len = round(seq_len / chunk_length_in_frames) * chunk_length_in_frames
-                        seq_len = int(seq_len)
-
-                        # Pad or trim each envelope separately
-                        envelope_chunks = [envelope_chunk_1, envelope_chunk_2]
-                        for i in range(len(envelope_chunks)):
-                            if len(envelope_chunks[i]) < seq_len:
-                                # If envelope is shorter, pad with zeros at the end
-                                padding = torch.zeros(seq_len - len(envelope_chunks[i]))
-                                envelope_chunks[i] = torch.cat((envelope_chunks[i], padding))
-                            elif len(envelope_chunks[i]) > seq_len:
-                                # If envelope is longer, trim the end
-                                envelope_chunks[i] = envelope_chunks[i][:seq_len]
-
-                        # Combine the two envelopes into a 2D tensor
-                        envelope_chunk_1 = torch.nn.functional.interpolate(envelope_chunks[0].unsqueeze(0).unsqueeze(0), 
-                                                                           size=(int(self.sr*self.chunk_length_in_seconds),), 
-                                                                           mode='nearest').squeeze(0).squeeze(0)
-                        envelope_chunk_2 = torch.nn.functional.interpolate(envelope_chunks[1].unsqueeze(0).unsqueeze(0),
-                                                                           size=(int(self.sr*self.chunk_length_in_seconds),), 
-                                                                           mode='nearest').squeeze(0).squeeze(0)
-                        envelope_chunk = torch.stack([envelope_chunk_1, envelope_chunk_2])
-                    # print(envelope_chunk.shape)
-
 
                     # extract onset times for this chunk
                     chunk_onsets_times = annotations[(annotations["times"] >= chunk_start_time) & (annotations["times"] < chunk_end_time)]["times"].values
@@ -237,8 +158,6 @@ class GreatestHitsDataset(torch.utils.data.Dataset):
                         "start_frame": chunk_start_frame,
                         "end_frame": chunk_end_frame,
                         "audio": audio_chunk,
-                        # "spec": spec_chunk,
-                        "envelope": envelope_chunk,
                         "labels": labels,
                         "frame_rate": frame_rate,
                         "sample_rate": self.sr,
@@ -247,7 +166,7 @@ class GreatestHitsDataset(torch.utils.data.Dataset):
                     })
 
             self.total_time_in_minutes /= 60.0
-            with open(f"{self.root_dir}/list_chunks_{self.split}_prova4.pkl", "wb") as f:
+            with open(f"{self.root_dir}/list_chunks_{self.split}_prova6.pkl", "wb") as f:
                 pickle.dump(self.list_chunks, f)
 
 
@@ -263,7 +182,7 @@ class GreatestHitsDataset(torch.utils.data.Dataset):
 
             # get frames
             frames_list = frames_list[chunk["start_frame"]:chunk["end_frame"]]
-            imgs = self.read_image_and_apply_transforms(frames_list)
+            frames = self.read_image_and_apply_transforms(frames_list)
         # except Exception as e:
         #     print(f"Error reading frames for chunk {index}: {e}")
         #     print(chunk)
@@ -278,22 +197,6 @@ class GreatestHitsDataset(torch.utils.data.Dataset):
         # get mel spectrogram
             # spec = chunk["spec"]
 
-        # get envelope
-        # audio = audio.squeeze()
-        # envelope = self.amplitude_envelope(audio)
-
-        # seq_len = audio_chunk.shape[0] / self.hop_length
-        # seq_len = round(seq_len / imgs.shape[1]) * imgs.shape[1]
-        # seq_len = int(seq_len)
-        # if len(envelope) < seq_len:
-        #     # If envelope is shorter, pad with zeros at the end
-        #     padding = torch.zeros(seq_len - len(envelope))
-        #     envelope = torch.cat((envelope, padding))
-        # elif len(envelope) > seq_len:
-        #     # If envelope is longer, trim the end
-        #     envelope = envelope[:seq_len]
-            envelope = chunk["envelope"]
-
             seconds_start = chunk["seconds_start"]
             seconds_total = chunk["seconds_total"]
 
@@ -303,13 +206,7 @@ class GreatestHitsDataset(torch.utils.data.Dataset):
                 "end_time": chunk["end_time"],
                 "start_frame": chunk["start_frame"],
                 "end_frame": chunk["end_frame"],
-                "seconds_start": seconds_start,
-                "seconds_total": seconds_total,
-                "frames": imgs,
                 "label": labels,
-                "audio": audio,
-                # "spec": spec,
-                "envelope": envelope,
                 "frame_rate": chunk["frame_rate"],
                 "sample_rate": chunk["sample_rate"],
             }
@@ -320,7 +217,7 @@ class GreatestHitsDataset(torch.utils.data.Dataset):
             print('---')
             return self.__getitem__(index + 1)
 
-        return audio, [item]
+        return audio, frames, seconds_start, seconds_total, [item]
 
     def read_image_and_apply_transforms(self, frame_list):
         imgs = []
@@ -352,14 +249,10 @@ class GreatestHitsDataset(torch.utils.data.Dataset):
 
     def print(self):
         print(f"\nGreatesthit {self.split} dataset:")
-        #print(f"num {self.split} samples: {len(self.list_samples)}")
         print(f"num {self.split} chunks: {len(self.list_chunks)}")
-        audio, item = self[0]
-        #print(f"total time in minutes: {self.total_time_in_minutes}")
-        print(f"chunk frames size: {item[0]['frames'].shape}")
-        print(f"chunk label size: {item[0]['label'].shape}")
-        print(f"chunk envelope size: {item[0]['envelope'].shape}")
-
+        audio, frames, seconds_start, seconds_total, item = self[0]
+        print(f"chunk frames size: {frames.shape}")
+        print(f"chunk audio size: {audio.shape}")
 
 if __name__ == '__main__':
     dataset = GreatestHitsDataset(

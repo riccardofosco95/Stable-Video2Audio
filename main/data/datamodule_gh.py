@@ -28,8 +28,6 @@ class GreatestHitsDatamodule(pl.LightningDataModule):
         test_frames_transforms: Union[transforms.Compose, None],
         chunk_length_in_seconds: float,
         sr: int,
-        frame_size: int,
-        hop_length: int,
         audio_file_suffix: str,
         annotations_file_suffix: str,
         metadata_file_suffix: str,
@@ -53,8 +51,6 @@ class GreatestHitsDatamodule(pl.LightningDataModule):
         self.test_frames_transforms = test_frames_transforms
         self.chunk_length_in_seconds = chunk_length_in_seconds
         self.sr = sr
-        self.frame_size = frame_size
-        self.hop_length = hop_length
         self.audio_file_suffix = audio_file_suffix
         self.annotations_file_suffix = annotations_file_suffix
         self.metadata_file_suffix = metadata_file_suffix
@@ -73,8 +69,6 @@ class GreatestHitsDatamodule(pl.LightningDataModule):
                 data_to_use=self.train_data_to_use,
                 chunk_length_in_seconds=self.chunk_length_in_seconds,
                 sr=self.sr,
-                frame_size=self.frame_size,
-                hop_length=self.hop_length,
                 frames_transforms=self.train_frames_transforms,
                 audio_file_suffix=self.audio_file_suffix,
                 annotations_file_suffix=self.annotations_file_suffix,
@@ -90,8 +84,6 @@ class GreatestHitsDatamodule(pl.LightningDataModule):
                 data_to_use=self.val_data_to_use,
                 chunk_length_in_seconds=self.chunk_length_in_seconds,
                 sr=self.sr,
-                frame_size=self.frame_size,
-                hop_length=self.hop_length,
                 frames_transforms=self.val_frames_transforms,
                 audio_file_suffix=self.audio_file_suffix,
                 annotations_file_suffix=self.annotations_file_suffix,
@@ -111,8 +103,6 @@ class GreatestHitsDatamodule(pl.LightningDataModule):
                 data_to_use=self.test_data_to_use,
                 chunk_length_in_seconds=self.chunk_length_in_seconds,
                 sr=self.sr,
-                frame_size=self.frame_size,
-                hop_length=self.hop_length,
                 frames_transforms=self.test_frames_transforms,
                 audio_file_suffix=self.audio_file_suffix,
                 annotations_file_suffix=self.annotations_file_suffix,
@@ -193,8 +183,6 @@ if __name__ == '__main__':
 
         chunk_length_in_seconds=2.0,
         sr=44100,
-        frame_size=512,
-        hop_length=128,
         force_channels="stereo",
 
         audio_file_suffix=".resampled.wav",

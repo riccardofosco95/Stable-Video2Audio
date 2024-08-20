@@ -25,8 +25,6 @@ datamodule:
   
   chunk_length_in_seconds: 2.0
   sr: 44100
-  frame_size: 512
-  hop_length: 128
   audio_file_suffix: .resampled.wav
   annotations_file_suffix: .times.csv
   metadata_file_suffix: .metadata.json

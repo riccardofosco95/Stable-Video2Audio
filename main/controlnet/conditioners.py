@@ -314,8 +314,7 @@ class CAVPConditioner(Conditioner):
         
         video_contrastive_feats = video_contrastive_feats.squeeze(1) # B x 1 x T x 512 -> B x T x 512
 
-        return [self.proj_out(video_contrastive_feats), torch.ones(video_contrastive_feats.shape[0], video_contrastive_feats.shape[1]).to(device)] #, \
-               #[self.proj_out(audio_contrastive_feats), torch.ones(audio_contrastive_feats.shape[0], 1).to(device)] if audio_contrastive_feats is not None else None
+        return [self.proj_out(video_contrastive_feats), torch.ones(video_contrastive_feats.shape[0], video_contrastive_feats.shape[1]).to(device)] 
 
 class T5Conditioner(Conditioner):
 

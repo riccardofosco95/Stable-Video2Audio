@@ -13,7 +13,17 @@ from stable_audio_tools.inference.sampling import get_alphas_sigmas
 from torch.utils.data import DataLoader
 from main.utils import log_wandb_audio_batch, log_wandb_audio_spectrogram
 
+def window_rms(x, window_size):
+    padding_size = window_size - 1
+    x2 = torch.nn.functional.pad(x ** 2, (padding_size, 0), mode='constant', value=0)
+    window = torch.ones(x2.shape[1], 1, window_size, device=x2.device) / float(window_size)
+    rms_envelope = torch.sqrt(torch.nn.functional.conv1d(x2, window, stride=1, groups=x2.shape[1]))
+    return rms_envelope
 
+def low_pass_filter(x, window_size):
+    low_pass_kernel = torch.ones(x.shape[1], 1, window_size, device=x.device) / window_size
+    filtered_signal = torch.nn.functional.conv1d(x, low_pass_kernel, stride=1, padding=window_size // 2, groups=x.shape[1])
+    return filtered_signal[:, :, :x.shape[-1]]
 
 
 """ Model """
@@ -27,7 +37,10 @@ class Model(pl.LightningModule):
         lr_eps: float,
         lr_weight_decay: float,
         depth_factor: float,
-        cfg_dropout_prob: float
+        cfg_dropout_prob: float,
+        controlnet_dropout_prob: float,
+        rms_window_size: int,
+        low_pass_window_size: int,
     ):
         super().__init__()
         self.lr = lr
@@ -46,17 +59,27 @@ class Model(pl.LightningModule):
 
         self.cfg_dropout_prob = cfg_dropout_prob
 
+        self.controlnet_dropout_prob = controlnet_dropout_prob
+
+        self.rms_window_size = rms_window_size
+        self.low_pass_window_size = low_pass_window_size
+
         self.model = model
         self.model.model.model.requires_grad_(False)
-        # self.model.conditioner.requires_grad_(False)
-        # self.model.conditioner.eval()
-        self.model.conditioner.requires_grad_(True) #-> Pretransform conditioner for envelope conditioning and Multiconditioner are trained
+        self.model.conditioner.requires_grad_(False)
+        self.model.conditioner.eval()
         self.model.pretransform.requires_grad_(False) #-> Pretransform for diffusion input is not trained
         self.model.pretransform.eval()
 
+        # can finetune controlnet embedders if enough VRAM
+        # self.model.conditioner.conditioners["envelope"].requires_grad_(True)
+        # self.model.conditioner.conditioners["envelope"].train()
+
 
     def configure_optimizers(self):
-        params = list(self.model.model.controlnet.parameters())
+        # can finetune controlnet embedders if enough VRAM
+        params = list(self.model.model.controlnet.parameters()) # +
+                  # list(self.model.conditioner.conditioners["envelope"].parameters()))
         optimizer = torch.optim.AdamW(
             params,
             lr=self.lr,
@@ -67,9 +90,13 @@ class Model(pl.LightningModule):
         return optimizer
 
     def step(self, batch):
-        # x, y, prompts, start_seconds, total_seconds = batch
-        x, metadata = batch
-        # print(metadata[0].keys())
+        x, frames, seconds_start, seconds_total, _ = batch
+
+        if torch.rand(1).item() > self.controlnet_dropout_prob:
+            rms_envelope = window_rms(x, window_size=self.rms_window_size)
+            filtered_envelope = low_pass_filter(rms_envelope, window_size=self.low_pass_window_size)
+        else:
+            filtered_envelope = torch.full_like(x, -1)
 
         diffusion_input = self.model.pretransform.encode(x)
 
@@ -95,10 +122,13 @@ class Model(pl.LightningModule):
         if self.diffusion_objective == "v":
             targets = noise * alphas - diffusion_input * sigmas
 
-
         output = self.model(x=noised_inputs,
                             t=t.to(self.device),
-                            cond=self.model.conditioner(metadata,
+                            cond=self.model.conditioner([{"audio": x[i:i+1],
+                                                          "frames": frames[i:i+1],
+                                                          "envelope": filtered_envelope[i:i+1],
+                                                          "seconds_start": seconds_start[i],
+                                                          "seconds_total": seconds_total[i]} for i in range(x.shape[0])],
                             device=self.device),
                             cfg_dropout_prob=self.cfg_dropout_prob)
         loss = torch.nn.functional.mse_loss(output, targets).mean()
@@ -217,61 +247,34 @@ class SampleLogger(Callback):
         if is_train:
             pl_module.eval()
         wandb_logger = get_wandb_logger(trainer).experiment
-        # _, y, prompts, start_seconds, total_seconds = batch
-        _, metadata = batch
-        # y = torch.clip(y, -1, 1)
+        x, frames, seconds_start, seconds_total, _ = batch
+        x = torch.clip(x, -1, 1)
+        rms_envelope = window_rms(x, window_size=pl_module.rms_window_size)
+        filtered_envelope = low_pass_filter(rms_envelope, window_size=pl_module.low_pass_window_size)
 
-        # num_samples = min(self.num_samples, y.shape[0])
-        num_samples = min(self.num_samples, len(metadata))
-
-        # conditioning = [{
-        #     "audio": y[i:i+1].to(pl_module.device),
-        #     "prompt": prompts[i],
-        #     "seconds_start": start_seconds[i],
-        #     "seconds_total": total_seconds[i],
-        # } for i in range(num_samples)]
+        num_samples = min(self.num_samples, x.shape[0])
 
         conditioning = [{
-            "audio": torch.clip(metadata[i]["audio"].to(pl_module.device), -1, 1), 
-            "envelope": metadata[i]["envelope"], 
-            "frames": metadata[i]["frames"],
-            "seconds_start": metadata[i]["seconds_start"],
-            "seconds_total": metadata[i]["seconds_total"],
+            "envelope": filtered_envelope[i:i+1].to(pl_module.device),
+            "audio": x[i:i+1],
+            "frames": frames[i:i+1],
+            "seconds_start": seconds_start[i],
+            "seconds_total": seconds_total[i],
         } for i in range(num_samples)]
-
-
-        # for i in range(num_samples):
-        #     log_wandb_audio_batch(
-        #         logger=wandb_logger,
-        #         id=f"true_{i}",
-        #         samples=y[i:i+1],
-        #         sampling_rate=pl_module.sample_rate,
-        #         caption=f"Prompt: {prompts[i]}",
-        #     )
 
         for i in range(num_samples):
             log_wandb_audio_batch(
                 logger=wandb_logger,
                 id=f"true_{i}",
-                samples=metadata[i]["audio"],
+                samples=x[i:i+1],
                 sampling_rate=pl_module.sample_rate,
-                # caption=f"Prompt: {prompts[i]}",
             )
-
-            # log_wandb_audio_spectrogram(
-            #     logger=wandb_logger,
-            #     id=f"true_{i}",
-            #     samples=y[i:i+1],
-            #     sampling_rate=pl_module.sample_rate,
-            #     caption=f"Prompt: {prompts[i]}",
-            # )
 
             log_wandb_audio_spectrogram(
                 logger=wandb_logger,
                 id=f"true_{i}",
-                samples=metadata[i]["audio"],
+                samples=x[i:i+1],
                 sampling_rate=pl_module.sample_rate,
-                # caption=f"Prompt: {prompts[i]}",
             )
 
         for steps in self.sampling_steps:
@@ -303,22 +306,6 @@ class SampleLogger(Callback):
                     sampling_rate=pl_module.sample_rate,
                     caption=f"Sampled in {steps} steps.",
                 )
-
-                # log_wandb_audio_batch(
-                #     logger=wandb_logger,
-                #     id=f"sample_sum_{i}",
-                #     samples=output[i:i + 1] + y[i:i+1],
-                #     sampling_rate=pl_module.sample_rate,
-                #     caption=f"Sampled in {steps} steps.",
-                # )
-
-                # log_wandb_audio_spectrogram(
-                #     logger=wandb_logger,
-                #     id=f"sample_sum_{i}",
-                #     samples=output[i:i + 1] + y[i:i+1],
-                #     sampling_rate=pl_module.sample_rate,
-                #     caption=f"Sampled in {steps} steps.",
-                # )
 
         if is_train:
             pl_module.train()

@@ -11,3 +11,4 @@ wandb/*
 *.log
 notebook/*
 script/*
+main.data.audioset_strong/*
