@@ -12,7 +12,4 @@ wandb/*
 notebook/*
 script/*
 main.data.audioset_strong/*
-notebook/out/*
-notebook/out_2/*
-notebook/out_3/*
-notebook/out_4/*
+output/*
