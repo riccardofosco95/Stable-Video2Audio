@@ -72,8 +72,8 @@ class GreatestHitsDataset(torch.utils.data.Dataset):
 
 
         # load list chunks from pickle if exists
-        if os.path.exists(f"{self.root_dir}/list_chunks_{self.split}_prova6.pkl"):
-            with open(f"{self.root_dir}/list_chunks_{self.split}_prova6.pkl", "rb") as f:
+        if os.path.exists(f"{self.root_dir}/list_chunks_{self.split}.pkl"):
+            with open(f"{self.root_dir}/list_chunks_{self.split}.pkl", "rb") as f:
                 self.list_chunks = pickle.load(f)
         
         else: 
@@ -147,6 +147,13 @@ class GreatestHitsDataset(torch.utils.data.Dataset):
 
                     # compute frames labels
                     labels = torch.zeros(chunk_length_in_frames)
+
+                    # check if chunk_onsets_frames has any index out of labels size
+                    max_index = chunk_onsets_frames.max().item() if chunk_onsets_frames.size > 0 else 0
+                    if max_index >= labels.size(0):
+                        # extend labels with zeros to fit the max index
+                        labels = torch.cat((labels, torch.zeros(max_index - labels.size(0) + 1)))
+
                     labels[chunk_onsets_frames] = 1
 
                     # append chunk
@@ -166,7 +173,7 @@ class GreatestHitsDataset(torch.utils.data.Dataset):
                     })
 
             self.total_time_in_minutes /= 60.0
-            with open(f"{self.root_dir}/list_chunks_{self.split}_prova6.pkl", "wb") as f:
+            with open(f"{self.root_dir}/list_chunks_{self.split}.pkl", "wb") as f:
                 pickle.dump(self.list_chunks, f)
 
 

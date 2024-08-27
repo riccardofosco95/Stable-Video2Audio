@@ -17,7 +17,7 @@ def get_pretrained_controlnet_model(name: str, depth_factor=0.5):
     with open(model_config_path) as f:
         model_config = json.load(f)
     model_config["model_type"] = "diffusion_cond_controlnet"
-    model_config["sample_size"] = 88200
+    model_config["sample_size"] = 441000
     model_config["sample_rate"] = 44100
     model_config["model"]["diffusion"]['config']["controlnet_depth_factor"] = depth_factor
     model_config["model"]["diffusion"]["type"] = "dit_controlnet"

@@ -4,6 +4,8 @@ module_path = os.path.abspath(os.path.join('.'))
 if module_path not in sys.path:
     sys.path.append(module_path)
 import pytorch_lightning as pl
+import torch
+import torch.nn.functional as F
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from typing import Union
@@ -59,6 +61,30 @@ class GreatestHitsDatamodule(pl.LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory
+    
+    def collate_fn(self, batch):
+        # Unpack the batch
+        audios, frames, seconds_start, seconds_total, items = zip(*batch)
+
+        # Pad audios to have shape [2, self.chunk_length_in_seconds * self.sr]
+        sample_size = int(self.chunk_length_in_seconds * self.sr)
+        audios_padded = []
+        for audio in audios:
+            if audio.shape[1] > sample_size:
+                # Truncate the audio
+                audio = audio[:, :sample_size]
+            elif audio.shape[1] < sample_size:
+            # Pad the audio
+                audio = F.pad(audio, (0, sample_size - audio.shape[1]))
+            audios_padded.append(audio)
+        # Stack audios and frames
+        audios = torch.stack(audios_padded)
+        frames = torch.stack(frames)
+
+        # Combine items into a single list
+        items = [item for sublist in items for item in sublist]
+
+        return audios, frames, seconds_start, seconds_total, items
 
     def setup(self, stage) -> None:
         if stage == "fit" or stage == "validate":
@@ -121,6 +147,7 @@ class GreatestHitsDatamodule(pl.LightningDataModule):
             pin_memory=self.pin_memory,
             shuffle=True,
             drop_last=True,
+            collate_fn=self.collate_fn,
         )
 
     def val_dataloader(self) -> DataLoader:
@@ -131,6 +158,7 @@ class GreatestHitsDatamodule(pl.LightningDataModule):
             pin_memory=self.pin_memory,
             shuffle=False,
             drop_last=False,
+            collate_fn=self.collate_fn,
         )
 
     def test_dataloader(self) -> DataLoader:
@@ -141,6 +169,7 @@ class GreatestHitsDatamodule(pl.LightningDataModule):
             pin_memory=self.pin_memory,
             shuffle=False,
             drop_last=False,
+            collate_fn=self.collate_fn,
         )
 
 

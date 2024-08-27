@@ -78,8 +78,7 @@ class Model(pl.LightningModule):
 
     def configure_optimizers(self):
         # can finetune controlnet embedders if enough VRAM
-        params = list(self.model.model.controlnet.parameters()) # +
-                  # list(self.model.conditioner.conditioners["envelope"].parameters()))
+        params = list(self.model.model.controlnet.parameters()) #+ list(self.model.conditioner.conditioners["envelope"].parameters())
         optimizer = torch.optim.AdamW(
             params,
             lr=self.lr,
@@ -91,13 +90,11 @@ class Model(pl.LightningModule):
 
     def step(self, batch):
         x, frames, seconds_start, seconds_total, _ = batch
-
         if torch.rand(1).item() > self.controlnet_dropout_prob:
             rms_envelope = window_rms(x, window_size=self.rms_window_size)
             filtered_envelope = low_pass_filter(rms_envelope, window_size=self.low_pass_window_size)
         else:
             filtered_envelope = torch.full_like(x, -1)
-
         diffusion_input = self.model.pretransform.encode(x)
 
         # if self.timestep_sampler == "uniform":
