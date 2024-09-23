@@ -28,7 +28,7 @@ pip install -r requirements_aes.txt
 
 ## Demo
 
-A [Inference Notebook](/Stable-Video2Audio/notebook/inference_gh.ipynb) (`/Stable-Video2Audio/notebook/inference_gh.ipynb`) is available to generate audios through Stable-Foley.
+A [Inference Notebook](/notebook/inference_gh.ipynb) (`/Stable-Video2Audio/notebook/inference_gh.ipynb`) is available to generate audios through Stable-Foley.
 The model was trained on GreatestHits, a video dataset of people hitting or scratching different objects with a drumstick (for more info: [Webpage]https://andrewowens.com/vis/). 
 Five test videos can be found in `/Stable-Video2Audio/notebook/gh_data`, where `samples-processed-4fps-44kHz`contains the audio and frames extrcated from each video. 
 The audio is resampled at 44100 Hz (this will be the sample rate of the generated stereo audio) and the frames are extracted at 4fps (this is because CAVP has been trained on videos at this frame rate).
