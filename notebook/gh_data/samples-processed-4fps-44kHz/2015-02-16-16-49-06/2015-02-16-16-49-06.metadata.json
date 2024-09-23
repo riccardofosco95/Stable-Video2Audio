@@ -1,0 +1,23 @@
+{
+    "original": {
+        "width": 1920,
+        "height": 1080,
+        "video_frame_rate": 29.97002997002997,
+        "video_duration": 73.506767,
+        "video_num_frames": 2203,
+        "audio_sample_rate": 96000,
+        "audio_channels": 2,
+        "audio_duration": 73.507,
+        "audio_num_samples": 7056672
+    },
+    "processed": {
+        "width": 320,
+        "height": 240,
+        "video_frame_rate": 4,
+        "video_duration": 73.506767,
+        "video_num_frames": 294,
+        "audio_sample_rate": 44100,
+        "audio_channels": 1,
+        "audio_bitdepth": 32
+    }
+}

@@ -131,15 +131,15 @@ if __name__ == '__main__':
     parser.add_argument("-iv", "--input_dir_videos", default='/import/c4dm-datasets-ext/DIFF-SFX/GREATEST-HITS-DATASET/mic-mp4')
     parser.add_argument("-vs", "--videos_suffix", default="_mic.mp4")
 
-    parser.add_argument("-o", "--output_dir", default='/import/c4dm-datasets-ext/DIFF-SFX/GREATEST-HITS-DATASET/mic-mp4-processed-4fps-16kHz')
+    parser.add_argument("-o", "--output_dir", default='/import/c4dm-datasets-ext/DIFF-SFX/GREATEST-HITS-DATASET/mic-mp4-processed-25fps-441kHz')
     parser.add_argument("-nw", "--num_workers", type=int, default='8')
 
-    parser.add_argument("-asr", '--audio_sample_rate', type=int, default='16000')
+    parser.add_argument("-asr", '--audio_sample_rate', type=int, default='44100')
     parser.add_argument("-abd", '--audio_bitdepth', type=int, default='32')
     parser.add_argument("-adn", '--audio_denoise', action='store_true', default=False)
     parser.add_argument("-ao", '--audio_onsets', action='store_true', default=False)
 
-    parser.add_argument("-vfps", '--video_fps', type=int, default='4')
+    parser.add_argument("-vfps", '--video_fps', type=int, default='25')
     parser.add_argument("-vw", '--video_width', type=int, default='320')
     parser.add_argument("-vh", '--video_height', type=int, default='240')
 

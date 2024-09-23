@@ -26,8 +26,8 @@ def get_pretrained_controlnet_model(name: str, depth_factor=0.5):
         "id": "frames",
         "type": "cavp_frames",
         "config": {
-            "config_path": "/homes/rfg543/Documents/stable-audio-controlnet/main/CAVP/config/Stage1_CAVP.yaml",
-            "ckpt_path": "/import/c4dm-datasets-ext/DIFF-SFX/logs/diff_foley/diff_foley_ckpt/cavp_epoch66.ckpt"
+            "config_path": "/homes/rfg543/Documents/Stable-Video2Audio/main/CAVP/config/Stage1_CAVP.yaml",
+            "ckpt_path": "/homes/rfg543/Documents/Stable-Video2Audio/logs/cavp_ckpt/cavp_epoch66.ckpt"
         }
     }
 
@@ -37,7 +37,7 @@ def get_pretrained_controlnet_model(name: str, depth_factor=0.5):
                     "config": {
                         "audio_model_type": "HTSAT-tiny",
                         "enable_fusion": True,
-                        "clap_ckpt_path": "/import/c4dm-datasets-ext/DIFF-SFX/logs/diffusion/clap_ckpt/630k-audioset-best.pt"
+                        "clap_ckpt_path": "/homes/rfg543/Documents/Stable-Video2Audio/logs/clap_ckpt/630k-audioset-best.pt"
                     }
                 }
     
