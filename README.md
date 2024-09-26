@@ -59,7 +59,7 @@ logs/
 !!! You will also need to modify paths in `/Stable-Video2Audio/main/controlnet/pretrained.py`:
 
 - `ln:29` : `"config_path": absolute path to "/Stable-Video2Audio/main/CAVP/config/Stage1_CAVP.yaml"`
-- `ln:29` : `"ckpt_path": absolute path to your CAVP ckpt`
+- `ln:30` : `"ckpt_path": absolute path to your CAVP ckpt`
 
 - `ln:40` : `"clap_ckpt_path": absolute path to your CLAP ckpt`
 
