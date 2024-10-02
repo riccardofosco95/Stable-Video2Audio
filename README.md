@@ -22,6 +22,14 @@ cd Stable-Video2Audio
 
 Install the requirements (it is recommended to use Python version 3.8.10)
 
+You can do this with
+
+```
+conda env create -f environment.yml
+```
+
+or with (after creating a conda env with Python version 3.8.10)
+
 ```
 pip install -r requirements_aes.txt
 ```
